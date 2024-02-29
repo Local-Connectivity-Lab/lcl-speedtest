@@ -6,10 +6,13 @@
 //
 
 import Foundation
+import NIOWebSocket
 
 enum SpeedTestError: Error {
     case fetchContentFailed(Int)
     case noDataFromServer
+    case invalidURL
     
     case notImplemented
+    case websocketCloseFailed(WebSocketErrorCode?)
 }

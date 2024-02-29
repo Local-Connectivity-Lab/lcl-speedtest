@@ -12,7 +12,28 @@ import FoundationNetworking
 #endif
 
 internal struct Networking {
-    static func send(request: URLRequest) async throws -> [TestServer] {
+    static func fetch(from urlString: String, cachePolicy: URLRequest.CachePolicy = .useProtocolCachePolicy, timeout: TimeInterval = 60, retry: UInt8 = 0) async throws -> Data {
+        guard let url = URL(string: urlString) else {
+            throw SpeedTestError.invalidURL
+        }
+        let request = URLRequest(url: url, cachePolicy: cachePolicy, timeoutInterval: timeout)
+        var retryCount = min(retry, MAX_RETRY_COUNT) + 1
+        while retryCount != 0 {
+            retryCount -= 1
+            do {
+                return try await fetch(from: request)
+            } catch SpeedTestError.fetchContentFailed(let statusCode) {
+                if 400...499 ~= statusCode {
+                    throw SpeedTestError.fetchContentFailed(statusCode)
+                }
+            }
+        }
+        
+        print(2)
+        throw SpeedTestError.noDataFromServer
+    }
+    
+    static func fetch(from request: URLRequest) async throws -> Data {
         return try await withCheckedThrowingContinuation { continuation in
             let task = URLSession.shared.dataTask(with: request) { data, response, error in
                 if let error = error {
@@ -28,16 +49,14 @@ internal struct Networking {
                 let statusCode = (response as! HTTPURLResponse).statusCode
                 switch statusCode {
                 case 200...299:
-                    do {
-                        let testServers = try JSONDecoder().decode([TestServer].self, from: data)
-                        continuation.resume(returning: testServers)
-                    } catch {
-                        continuation.resume(throwing: error)
-                    }
+                    // TODO: handle 204 full capacity
+                    continuation.resume(returning: data)
                 default:
                     continuation.resume(throwing: SpeedTestError.fetchContentFailed(statusCode))
                 }
             }
+            
+            task.resume()
         }
     }
 }

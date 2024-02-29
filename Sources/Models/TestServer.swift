@@ -36,8 +36,14 @@ internal struct TestServer: Codable {
     let urls: TestServerURLs
 }
 
+internal struct TestServerResponse: Codable {
+    let results: [TestServer]
+}
+
 extension TestServer {
-    internal static func discover() throws -> [TestServer] {
-        throw SpeedTestError.notImplemented
+    internal static func discover() async throws -> [TestServer] {
+        let result = try await Networking.fetch(from: DISCOVER_SERVER_URL)
+        let response = try JSONDecoder().decode(TestServerResponse.self, from: result)
+        return response.results
     }
 }
