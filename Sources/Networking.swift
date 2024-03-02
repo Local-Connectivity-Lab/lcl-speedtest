@@ -26,6 +26,8 @@ internal struct Networking {
                 if 400...499 ~= statusCode {
                     throw SpeedTestError.fetchContentFailed(statusCode)
                 }
+            } catch SpeedTestError.testServersOutOfCapacity {
+                return Data()
             }
         }
         
@@ -48,8 +50,9 @@ internal struct Networking {
                 
                 let statusCode = (response as! HTTPURLResponse).statusCode
                 switch statusCode {
+                case 204:
+                    continuation.resume(throwing: SpeedTestError.testServersOutOfCapacity)
                 case 200...299:
-                    // TODO: handle 204 full capacity
                     continuation.resume(returning: data)
                 default:
                     continuation.resume(throwing: SpeedTestError.fetchContentFailed(statusCode))

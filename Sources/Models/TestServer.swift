@@ -43,6 +43,9 @@ internal struct TestServerResponse: Codable {
 extension TestServer {
     internal static func discover() async throws -> [TestServer] {
         let result = try await Networking.fetch(from: DISCOVER_SERVER_URL)
+        if result.isEmpty {
+            return []
+        }
         let response = try JSONDecoder().decode(TestServerResponse.self, from: result)
         return response.results
     }

@@ -7,7 +7,7 @@
 
 import Foundation
 
-public enum TestDirection: String, Codable {
+public enum TestDirection: String, Codable, Equatable {
     case upload = "upload"
     case download = "download"
 }
@@ -84,7 +84,7 @@ public struct TCPInfo: Codable {
 }
 
 public struct Measurement: Codable {
-    public let appInfo: AppInfo?
+    public var appInfo: AppInfo?
     public let bbrInfo: BBRInfo?
     public let connectionInfo: ConnectionInfo?
     public var origin: TestOrigin?
@@ -99,5 +99,23 @@ public struct Measurement: Codable {
         case origin = "Origin"
         case direction = "Test"
         case tcpInfo = "TCPInfo"
+    }
+}
+
+public struct MeasurementProgress: Codable {
+    let appInfo: AppInfo
+    let origin: String
+    let test: String
+    
+    enum CodingKeys: String, CodingKey {
+        case appInfo = "AppInfo"
+        case origin = "Origin"
+        case test = "Test"
+    }
+}
+
+extension MeasurementProgress {
+    public static func create(elapedTime: Int64, numBytes: Int64, direction: TestDirection) -> MeasurementProgress {
+        return MeasurementProgress(appInfo: AppInfo(elapsedTime: elapedTime, numBytes: numBytes), origin: "client", test: direction.rawValue)
     }
 }
