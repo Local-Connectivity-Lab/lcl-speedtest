@@ -23,3 +23,7 @@ extension WebSocket {
         }
     }
 }
+
+extension WebSocketClient {
+
+}
