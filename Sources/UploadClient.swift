@@ -17,12 +17,14 @@ internal final class UploadClient: SpeedTestable {
     
     private var startTime: Int64
     private var numBytes: Int64
+    private var previousTimeMark: Int64
     private let jsonDecoder: JSONDecoder
     
     required init(url: URL) {
         self.url = url
         self.eventloop = MultiThreadedEventLoopGroup(numberOfThreads: 1)
         self.startTime = 0
+        self.previousTimeMark = 0
         self.numBytes = 0
         self.jsonDecoder = JSONDecoder()
     }
@@ -43,7 +45,6 @@ internal final class UploadClient: SpeedTestable {
     
     func start() throws -> NIOCore.EventLoopFuture<Void> {
         let promise = self.eventloop.next().makePromise(of: Void.self)
-        let uploadPromise = self.eventloop.next().makePromise(of: Void.self)
         try WebSocket.connect(to: self.url.absoluteString, headers: self.httpHeaders, configuration: self.configuration, on: self.eventloop) { ws in
             print("websocket connected")
             self.startTime = Date.nowInMicroSecond
@@ -78,11 +79,7 @@ internal final class UploadClient: SpeedTestable {
     func onText(ws: WebSocketKit.WebSocket, text: String) {
         let buffer = ByteBuffer(string: text)
         do {
-            var measurement: Measurement = try jsonDecoder.decode(Measurement.self, from: buffer)
-            let appInfo = AppInfo(elapsedTime: Date.nowInMicroSecond - self.startTime, numBytes: self.numBytes)
-            if measurement.appInfo == nil {
-                measurement.appInfo = appInfo
-            }
+            let measurement: Measurement = try jsonDecoder.decode(Measurement.self, from: buffer)
             if let onMeasurement = self.onMeasurement {
                 onMeasurement(measurement)
             }
@@ -100,30 +97,27 @@ internal final class UploadClient: SpeedTestable {
         }
     }
     
-    private func upload(using ws: WebSocket, promise: EventLoopPromise<Void>? = nil) {
+    private func upload(using ws: WebSocket) {
         let start = Date.nowInMicroSecond
         var currentLoad = MIN_MESSAGE_SIZE
         while Date.nowInMicroSecond - start < MEASUREMENT_DURATION {
             let load = generateLoad(with: currentLoad)
-            let promise = self.eventloop.next().makePromise(of: Void.self)
-            ws.send(load, promise: promise)
+            ws.send(load)
             currentLoad = load.readableBytes
-            print("uploaded \(currentLoad) bytes")
             self.numBytes += Int64(currentLoad)
+            
+            let current = Date.nowInMicroSecond
             if let onProgress = self.onProgress {
-                onProgress(UploadClient.generateMeasurementProgress(startTime: self.startTime, numBytes: self.numBytes, direction: .upload))
-            }
-            do {
-                try promise.futureResult.wait()
-            } catch {
-                
+                if current - previousTimeMark >= MEASUREMENT_REPORT_INTERVAL {
+                    onProgress(UploadClient.generateMeasurementProgress(startTime: self.startTime, numBytes: self.numBytes, direction: .upload))
+                    previousTimeMark = current
+                }
             }
         }
     }
     
     private func generateLoad(with size: Int) -> ByteBuffer {
         var loadSize = size
-        print("current load size: \(size), numBytesSent: \(self.numBytes)")
         if loadSize * 2 < MAX_MESSAGE_SIZE && loadSize < (self.numBytes / 16) {
             loadSize *= 2
         }

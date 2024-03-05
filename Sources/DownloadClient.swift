@@ -17,12 +17,14 @@ internal final class DownloadClient: SpeedTestable {
     
     private var startTime: Int64
     private var numBytes: Int64
+    private var previousTimeMark: Int64
     private let jsonDecoder: JSONDecoder
     
     required init(url: URL) {
         self.url = url
         self.eventloop = MultiThreadedEventLoopGroup(numberOfThreads: 1)
         self.startTime = 0
+        self.previousTimeMark = 0
         self.numBytes = 0
         self.jsonDecoder = JSONDecoder()
     }
@@ -36,9 +38,7 @@ internal final class DownloadClient: SpeedTestable {
     }
     
     var onMeasurement: ((Measurement) -> Void)?
-    
     var onProgress: ((MeasurementProgress) -> Void)?
-    
     var onFinish: ((MeasurementProgress, Error?) -> Void)?
     
     func start() throws -> EventLoopFuture<Void> {
@@ -77,16 +77,11 @@ internal final class DownloadClient: SpeedTestable {
     func onText(ws: WebSocket, text: String) {
         let buffer = ByteBuffer(string: text)
         do {
-            var measurement: Measurement = try jsonDecoder.decode(Measurement.self, from: buffer)
+            let measurement: Measurement = try jsonDecoder.decode(Measurement.self, from: buffer)
             self.numBytes += Int64(buffer.readableBytes)
-            let appInfo = AppInfo(elapsedTime: Date.nowInMicroSecond - self.startTime, numBytes: self.numBytes)
-            if measurement.appInfo == nil {
-                measurement.appInfo = appInfo
-            }
             if let onMeasurement = self.onMeasurement {
                 onMeasurement(measurement)
             }
-            print(measurement)
         } catch {
             print("onText Error: \(error)")
         }
@@ -95,7 +90,11 @@ internal final class DownloadClient: SpeedTestable {
     func onBinary(ws: WebSocket, bytes: ByteBuffer) {
         self.numBytes += Int64(bytes.readableBytes)
         if let onProgress = self.onProgress {
-            onProgress(DownloadClient.generateMeasurementProgress(startTime: self.startTime, numBytes: self.numBytes, direction: .download))
+            let current = Date.nowInMicroSecond
+            if current - previousTimeMark >= MEASUREMENT_REPORT_INTERVAL {
+                onProgress(DownloadClient.generateMeasurementProgress(startTime: self.startTime, numBytes: self.numBytes, direction: .download))
+                previousTimeMark = current
+            }
         }
     }
     

@@ -30,6 +30,13 @@ struct TestClient {
             return
         }
         let downloader = DownloadClient(url: downloadURL)
+        downloader.onProgress = { measurementProgress in
+            print("speed: \(measurementProgress.convertTo(unit: .Mbps))")
+            print("measurement progress: \(measurementProgress)")
+        }
+        downloader.onMeasurement = { measurement in
+            print("measurement: \(measurement)")
+        }
         try await downloader.start().get()
     }
     
@@ -39,6 +46,13 @@ struct TestClient {
             return
         }
         let uploader = UploadClient(url: uploadURL)
+        uploader.onProgress = { measurementProgress in
+            print("speed: \(measurementProgress.convertTo(unit: .Mbps))")
+            print("measurement progress: \(measurementProgress)")
+        }
+        uploader.onMeasurement = { measurement in
+            print("measurement: \(measurement)")
+        }
         try await uploader.start().get()
     }
     
