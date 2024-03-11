@@ -12,4 +12,4 @@ let DISCOVER_SERVER_URL = "https://locate.measurementlab.net/v2/nearest/ndt/ndt7
 let MAX_MESSAGE_SIZE: Int = 1 << 24
 let MIN_MESSAGE_SIZE: Int = 1 << 13
 let MEASUREMENT_REPORT_INTERVAL: Int64 = 250000 // 250 ms in microsecond
-let MEASUREMENT_DURATION: Int64 = 5000000 // 10 second in microsecond
+let MEASUREMENT_DURATION: Int64 = 10000000 // 10 second in microsecond

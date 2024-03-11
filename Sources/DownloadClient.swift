@@ -43,7 +43,7 @@ internal final class DownloadClient: SpeedTestable {
     
     func start() throws -> EventLoopFuture<Void> {
         let promise = self.eventloop.next().makePromise(of: Void.self)
-        try WebSocket.connect(to: self.url.absoluteString, headers: self.httpHeaders, configuration: self.configuration, on: self.eventloop) { ws in
+        try WebSocket.connect(to: self.url, headers: self.httpHeaders, configuration: self.configuration, on: self.eventloop) { ws in
             
             print("websocket connected")
             self.startTime = Date.nowInMicroSecond
@@ -97,5 +97,4 @@ internal final class DownloadClient: SpeedTestable {
             }
         }
     }
-    
 }

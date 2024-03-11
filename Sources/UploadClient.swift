@@ -45,7 +45,7 @@ internal final class UploadClient: SpeedTestable {
     
     func start() throws -> NIOCore.EventLoopFuture<Void> {
         let promise = self.eventloop.next().makePromise(of: Void.self)
-        try WebSocket.connect(to: self.url.absoluteString, headers: self.httpHeaders, configuration: self.configuration, on: self.eventloop) { ws in
+        try WebSocket.connect(to: self.url, headers: self.httpHeaders, queueSize: 1 << 26, configuration: self.configuration, on: self.eventloop) { ws in
             print("websocket connected")
             self.startTime = Date.nowInMicroSecond
             
@@ -101,26 +101,30 @@ internal final class UploadClient: SpeedTestable {
         let start = Date.nowInMicroSecond
         var currentLoad = MIN_MESSAGE_SIZE
         while Date.nowInMicroSecond - start < MEASUREMENT_DURATION {
-            let load = generateLoad(with: currentLoad)
-            ws.send(load)
-            currentLoad = load.readableBytes
-            self.numBytes += Int64(currentLoad)
+            let loadSize = calibrateLoadSize(initial: currentLoad, ws: ws)
             
-            let current = Date.nowInMicroSecond
-            if let onProgress = self.onProgress {
-                if current - previousTimeMark >= MEASUREMENT_REPORT_INTERVAL {
-                    onProgress(UploadClient.generateMeasurementProgress(startTime: self.startTime, numBytes: self.numBytes, direction: .upload))
-                    previousTimeMark = current
-                }
+            if ws.bufferedBytes < 7 * loadSize {
+                let payload = ByteBuffer(repeating: 0, count: loadSize)
+                ws.send(payload)
+                currentLoad = loadSize
+                self.numBytes += Int64(currentLoad)
+            }
+            reportToClient(currentBufferSize: ws.bufferedBytes)
+        }
+    }
+
+    private func reportToClient(currentBufferSize: Int) {
+        let current = Date.nowInMicroSecond
+        if let onProgress = self.onProgress {
+            if current - previousTimeMark >= MEASUREMENT_REPORT_INTERVAL {
+                onProgress(UploadClient.generateMeasurementProgress(startTime: self.startTime, numBytes: self.numBytes - Int64(currentBufferSize), direction: .upload))
+                previousTimeMark = current
             }
         }
     }
-    
-    private func generateLoad(with size: Int) -> ByteBuffer {
-        var loadSize = size
-        if loadSize * 2 < MAX_MESSAGE_SIZE && loadSize < (self.numBytes / 16) {
-            loadSize *= 2
-        }
-        return ByteBuffer(repeating: 0, count: loadSize)
+
+    private func calibrateLoadSize(initial size: Int, ws: WebSocket) -> Int {
+        let nextSizeIncrement: Int = size >= MAX_MESSAGE_SIZE ? .max : 16 * size
+        return (self.numBytes - Int64(ws.bufferedBytes) >= nextSizeIncrement) ? size * 2 : size
     }
 }
