@@ -1,8 +1,13 @@
 //
-//  File.swift
-//  
+// This source file is part of the LCLPing open source project
 //
-//  Created by Zhennan Zhou on 2/22/24.
+// Copyright (c) 2021-2024 Local Connectivity Lab and the project authors
+// Licensed under Apache License v2.0
+//
+// See LICENSE for license information
+// See CONTRIBUTORS for the list of project authors
+//
+// SPDX-License-Identifier: Apache-2.0
 //
 
 import Foundation
@@ -36,8 +41,17 @@ internal struct TestServer: Codable {
     let urls: TestServerURLs
 }
 
+internal struct TestServerResponse: Codable {
+    let results: [TestServer]
+}
+
 extension TestServer {
-    internal static func discover() throws -> [TestServer] {
-        throw SpeedTestError.notImplemented
+    internal static func discover() async throws -> [TestServer] {
+        let result = try await Networking.fetch(from: DISCOVER_SERVER_URL)
+        if result.isEmpty {
+            return []
+        }
+        let response = try JSONDecoder().decode(TestServerResponse.self, from: result)
+        return response.results
     }
 }

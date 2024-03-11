@@ -11,22 +11,20 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.62.0"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.5.3"),
-        .package(url: "https://github.com/apple/swift-nio-ssl.git", from: "2.25.0"),
+        .package(url: "https://github.com/johnnzhou/websocket-kit.git", branch: "main")
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
         // Targets can depend on other targets in this package and products from dependencies.
         .executableTarget(
-            name: "lcl-speedtest",
+            name: "LCLSpeedTest",
             dependencies: [
                 .product(name: "NIO", package: "swift-nio"),
                 .product(name: "NIOCore", package: "swift-nio"),
                 .product(name: "NIOPosix", package: "swift-nio"),
                 .product(name: "NIOHTTP1", package: "swift-nio"),
-                .product(name: "NIOTestUtils", package: "swift-nio"),
-                .product(name: "NIOWebSocket", package: "swift-nio"),
                 .product(name: "Logging", package: "swift-log"),
-                .product(name: "NIOSSL", package: "swift-nio-ssl"),
+                .product(name: "WebSocketKit", package: "websocket-kit")
             ]
         ),
     ]

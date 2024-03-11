@@ -9,17 +9,14 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 //
-
 import Foundation
-import NIOWebSocket
 
-enum SpeedTestError: Error {
-    case fetchContentFailed(Int)
-    case noDataFromServer
-    case testServersOutOfCapacity
-    case invalidURL
-    
-    case notImplemented
-    case websocketCloseFailed(WebSocketErrorCode?)
-    case websocketCloseWithError(Error)
+extension Date {
+    static var nowInMicroSecond: Int64 {
+        if #available(macOS 12, *) {
+            Int64(Date.now.timeIntervalSince1970 * 1000_000)
+        } else {
+            Int64(Date().timeIntervalSince1970 * 1000_000)
+        }
+    }
 }

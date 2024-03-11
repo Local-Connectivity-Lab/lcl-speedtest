@@ -13,13 +13,6 @@
 import Foundation
 import NIOWebSocket
 
-enum SpeedTestError: Error {
-    case fetchContentFailed(Int)
-    case noDataFromServer
-    case testServersOutOfCapacity
-    case invalidURL
-    
-    case notImplemented
-    case websocketCloseFailed(WebSocketErrorCode?)
-    case websocketCloseWithError(Error)
+extension WebSocketErrorCode {
+    static let missingErrorCode: UInt16 = 4000
 }

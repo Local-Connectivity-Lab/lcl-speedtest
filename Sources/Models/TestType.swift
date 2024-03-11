@@ -11,15 +11,9 @@
 //
 
 import Foundation
-import NIOWebSocket
 
-enum SpeedTestError: Error {
-    case fetchContentFailed(Int)
-    case noDataFromServer
-    case testServersOutOfCapacity
-    case invalidURL
-    
-    case notImplemented
-    case websocketCloseFailed(WebSocketErrorCode?)
-    case websocketCloseWithError(Error)
+public enum TestType {
+    case download
+    case upload
+    case downloadAndUpload
 }
