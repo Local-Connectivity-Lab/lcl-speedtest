@@ -8,6 +8,9 @@ let package = Package(
     platforms: [
         .macOS(.v10_15), .iOS(.v14), .tvOS(.v13), .watchOS(.v6)
     ],
+    products: [
+        .library(name: "LCLSpeedTest", targets: ["LCLSpeedTest"])
+    ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.62.0"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.5.3"),
