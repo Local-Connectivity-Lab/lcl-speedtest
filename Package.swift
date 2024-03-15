@@ -6,7 +6,7 @@ import PackageDescription
 let package = Package(
     name: "lcl-speedtest",
     platforms: [
-        .macOS(.v10_15), .iOS(.v14)
+        .macOS(.v10_15), .iOS(.v14), .tvOS(.v13), .watchOS(.v6)
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.62.0"),
@@ -16,7 +16,7 @@ let package = Package(
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
         // Targets can depend on other targets in this package and products from dependencies.
-        .executableTarget(
+        .target(
             name: "LCLSpeedTest",
             dependencies: [
                 .product(name: "NIO", package: "swift-nio"),
@@ -26,6 +26,6 @@ let package = Package(
                 .product(name: "Logging", package: "swift-log"),
                 .product(name: "WebSocketKit", package: "websocket-kit")
             ]
-        ),
+        )
     ]
 )
