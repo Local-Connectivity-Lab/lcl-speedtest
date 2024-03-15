@@ -1,10 +1,21 @@
-// The Swift Programming Language
-// https://docs.swift.org/swift-book
+//
+// This source file is part of the LCLPing open source project
+//
+// Copyright (c) 2021-2024 Local Connectivity Lab and the project authors
+// Licensed under Apache License v2.0
+//
+// See LICENSE for license information
+// See CONTRIBUTORS for the list of project authors
+//
+// SPDX-License-Identifier: Apache-2.0
+//
 
 import Foundation
 
-@main
-struct TestClient {
+struct SpeedTestClient {
+    
+    var onProgress: ((MeasurementProgress) -> Void)?
+    var onMeasurement: ((Measurement) -> Void)?
     
     public func start(with type: TestType) async throws {
         let testServers = try await TestServer.discover()
@@ -26,36 +37,24 @@ struct TestClient {
     
     private func runDownloadTest(using testServers: [TestServer]) async throws {
         guard let downloadPath = testServers.first?.urls.downloadPath, let downloadURL = URL(string: downloadPath) else {
-            print("Cannot locate URL for download test")
-            return
+            throw SpeedTestError.invalidTestURL("Cannot locate URL for download test")
         }
+
         let downloader = DownloadClient(url: downloadURL)
-        downloader.onProgress = { measurementProgress in
-            print("speed: \(measurementProgress.convertTo(unit: .Mbps))")
-        }
-        downloader.onMeasurement = { measurement in
-        }
+        downloader.onProgress = self.onProgress
+        downloader.onMeasurement = self.onMeasurement
         try await downloader.start().get()
     }
     
     private func runUploadTest(using testServers: [TestServer]) async throws {
         guard let uploadPath = testServers.first?.urls.uploadPath, let uploadURL = URL(string: uploadPath) else {
-            print("Cannot locate URL for upload test")
-            return
+            throw SpeedTestError.invalidTestURL("Cannot locate URL for upload test")
         }
-        let uploader = UploadClient(url: uploadURL)
-        uploader.onProgress = { measurementProgress in
-            print("speed: \(measurementProgress.convertTo(unit: .Mbps))")
-        }
-        uploader.onMeasurement = { measurement in
 
-        }
+        let uploader = UploadClient(url: uploadURL)
+        uploader.onProgress = self.onProgress
+        uploader.onMeasurement = self.onMeasurement
         try await uploader.start().get()
-    }
-    
-    public static func main() async throws {
-        let testClient = TestClient()
-        try await testClient.start(with: .upload)
     }
 }
 

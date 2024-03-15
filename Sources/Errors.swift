@@ -18,6 +18,7 @@ enum SpeedTestError: Error {
     case noDataFromServer
     case testServersOutOfCapacity
     case invalidURL
+    case invalidTestURL(String)
     
     case notImplemented
     case websocketCloseFailed(WebSocketErrorCode?)
