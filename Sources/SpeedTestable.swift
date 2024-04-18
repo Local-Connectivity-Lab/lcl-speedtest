@@ -18,7 +18,7 @@ import NIOCore
 public protocol SpeedTestable {
     
     init(url: URL)
-    var onMeasurement: ((Measurement) -> Void)? { get set }
+    var onMeasurement: ((SpeedTestMeasurement) -> Void)? { get set }
     var onProgress: ((MeasurementProgress) -> Void)? { get set }
     var onFinish: ((MeasurementProgress, Error?) -> Void)? { get set }
     

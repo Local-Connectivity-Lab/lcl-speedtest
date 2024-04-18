@@ -19,7 +19,6 @@ extension WebSocket {
         return try await withCheckedThrowingContinuation { continuation in
             do {
                 try self.connect(to: url, headers: headers, configuration: configuration, on: eventloopGroup) { ws in
-                    print("received ws connection")
                     continuation.resume(returning: ws)
                 }.wait()
             } catch {

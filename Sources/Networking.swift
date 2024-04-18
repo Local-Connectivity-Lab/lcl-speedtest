@@ -32,11 +32,10 @@ internal struct Networking {
                     throw SpeedTestError.fetchContentFailed(statusCode)
                 }
             } catch SpeedTestError.testServersOutOfCapacity {
-                return Data()
+                throw SpeedTestError.testServersOutOfCapacity
             }
         }
-        
-        print(2)
+
         throw SpeedTestError.noDataFromServer
     }
     

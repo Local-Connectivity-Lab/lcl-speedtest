@@ -88,7 +88,7 @@ public struct TCPInfo: Codable {
     }
 }
 
-public struct Measurement: Codable {
+public struct SpeedTestMeasurement: Codable {
     public var appInfo: AppInfo?
     public let bbrInfo: BBRInfo?
     public let connectionInfo: ConnectionInfo?

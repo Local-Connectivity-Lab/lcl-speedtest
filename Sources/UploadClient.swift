@@ -42,7 +42,7 @@ internal final class UploadClient: SpeedTestable {
         }
     }
     
-    var onMeasurement: ((Measurement) -> Void)?
+    var onMeasurement: ((SpeedTestMeasurement) -> Void)?
     
     var onProgress: ((MeasurementProgress) -> Void)?
     
@@ -84,7 +84,7 @@ internal final class UploadClient: SpeedTestable {
     func onText(ws: WebSocketKit.WebSocket, text: String) {
         let buffer = ByteBuffer(string: text)
         do {
-            let measurement: Measurement = try jsonDecoder.decode(Measurement.self, from: buffer)
+            let measurement: SpeedTestMeasurement = try jsonDecoder.decode(SpeedTestMeasurement.self, from: buffer)
             if let onMeasurement = self.onMeasurement {
                 onMeasurement(measurement)
             }

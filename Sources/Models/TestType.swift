@@ -12,8 +12,8 @@
 
 import Foundation
 
-public enum TestType {
-    case download
-    case upload
-    case downloadAndUpload
+public enum TestType: String {
+    case download = "download"
+    case upload = "upload"
+    case downloadAndUpload = "downloadAndUpload"
 }
