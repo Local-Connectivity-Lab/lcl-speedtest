@@ -26,7 +26,7 @@ internal struct TestServerURLs: Codable {
     let uploadPath: String
     let insecureDownloadPath: String
     let insecureUploadPath: String
-    
+
     enum CodingKeys: String, CodingKey {
         case downloadPath = "wss:///ndt/v7/download"
         case uploadPath = "wss:///ndt/v7/upload"

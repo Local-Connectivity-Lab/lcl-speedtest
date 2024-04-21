@@ -13,7 +13,7 @@
 import Foundation
 
 public enum TestType: String {
-    case download = "download"
-    case upload = "upload"
-    case downloadAndUpload = "downloadAndUpload"
+    case download
+    case upload
+    case downloadAndUpload
 }

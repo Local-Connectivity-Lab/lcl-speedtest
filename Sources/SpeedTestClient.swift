@@ -13,17 +13,17 @@
 import Foundation
 
 public struct SpeedTestClient {
-    
+
     public var onUploadProgress: ((MeasurementProgress) -> Void)?
     public var onUploadMeasurement: ((SpeedTestMeasurement) -> Void)?
     public var onDownloadProgress: ((MeasurementProgress) -> Void)?
     public var onDownloadMeasurement: ((SpeedTestMeasurement) -> Void)?
-    
+
     private var downloader: DownloadClient?
     private var uploader: UploadClient?
-    
+
     public init() { }
-    
+
     public mutating func start(with type: TestType) async throws {
         do {
             let testServers = try await TestServer.discover()
@@ -40,14 +40,15 @@ public struct SpeedTestClient {
             throw error
         }
     }
-    
+
     public func cancel() throws {
         try downloader?.stop()
         try uploader?.stop()
     }
-    
+
     private mutating func runDownloadTest(using testServers: [TestServer]) async throws {
-        guard let downloadPath = testServers.first?.urls.downloadPath, let downloadURL = URL(string: downloadPath) else {
+        guard let downloadPath = testServers.first?.urls.downloadPath,
+                let downloadURL = URL(string: downloadPath) else {
             throw SpeedTestError.invalidTestURL("Cannot locate URL for download test")
         }
 
@@ -56,7 +57,7 @@ public struct SpeedTestClient {
         downloader?.onMeasurement = self.onDownloadMeasurement
         try await downloader?.start().get()
     }
-    
+
     private mutating func runUploadTest(using testServers: [TestServer]) async throws {
         guard let uploadPath = testServers.first?.urls.uploadPath, let uploadURL = URL(string: uploadPath) else {
             throw SpeedTestError.invalidTestURL("Cannot locate URL for upload test")
@@ -68,4 +69,3 @@ public struct SpeedTestClient {
         try await uploader?.start().get()
     }
 }
-

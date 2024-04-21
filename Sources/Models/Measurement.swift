@@ -13,19 +13,19 @@
 import Foundation
 
 public enum TestDirection: String, Codable, Equatable {
-    case upload = "upload"
-    case download = "download"
+    case upload
+    case download
 }
 
 public enum TestOrigin: String, Codable {
-    case client = "client"
-    case server = "server"
+    case client
+    case server
 }
 
 public struct AppInfo: Codable {
-    let elapsedTime: Int64
-    let numBytes: Int64
-    
+    public let elapsedTime: Int64
+    public let numBytes: Int64
+
     enum CodingKeys: String, CodingKey {
         case elapsedTime = "ElapsedTime"
         case numBytes = "NumBytes"
@@ -108,10 +108,10 @@ public struct SpeedTestMeasurement: Codable {
 }
 
 public struct MeasurementProgress: Codable {
-    let appInfo: AppInfo
-    let origin: String
-    let test: String
-    
+    public let appInfo: AppInfo
+    public let origin: String
+    public let test: String
+
     enum CodingKeys: String, CodingKey {
         case appInfo = "AppInfo"
         case origin = "Origin"
@@ -121,6 +121,10 @@ public struct MeasurementProgress: Codable {
 
 extension MeasurementProgress {
     public static func create(elapedTime: Int64, numBytes: Int64, direction: TestDirection) -> MeasurementProgress {
-        return MeasurementProgress(appInfo: AppInfo(elapsedTime: elapedTime, numBytes: numBytes), origin: "client", test: direction.rawValue)
+        return MeasurementProgress(
+            appInfo: AppInfo(elapsedTime: elapedTime, numBytes: numBytes),
+            origin: "client",
+            test: direction.rawValue
+        )
     }
 }

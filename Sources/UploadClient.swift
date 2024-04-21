@@ -19,12 +19,12 @@ import NIOWebSocket
 internal final class UploadClient: SpeedTestable {
     private let url: URL
     private let eventloop: MultiThreadedEventLoopGroup
-    
+
     private var startTime: Int64
     private var numBytes: Int64
     private var previousTimeMark: Int64
     private let jsonDecoder: JSONDecoder
-    
+
     required init(url: URL) {
         self.url = url
         self.eventloop = MultiThreadedEventLoopGroup(numberOfThreads: 1)
@@ -33,7 +33,7 @@ internal final class UploadClient: SpeedTestable {
         self.numBytes = 0
         self.jsonDecoder = JSONDecoder()
     }
-    
+
     deinit {
         do {
             try self.eventloop.syncShutdownGracefully()
@@ -41,46 +41,69 @@ internal final class UploadClient: SpeedTestable {
             fatalError("Failed to close channel gracefully: \(error)")
         }
     }
-    
+
     var onMeasurement: ((SpeedTestMeasurement) -> Void)?
-    
+
     var onProgress: ((MeasurementProgress) -> Void)?
-    
+
     var onFinish: ((MeasurementProgress, Error?) -> Void)?
-    
+
     func start() throws -> NIOCore.EventLoopFuture<Void> {
         let promise = self.eventloop.next().makePromise(of: Void.self)
-        try WebSocket.connect(to: self.url, headers: self.httpHeaders, queueSize: 1 << 26, configuration: self.configuration, on: self.eventloop) { ws in
+        try WebSocket.connect(
+            to: self.url,
+            headers: self.httpHeaders,
+            queueSize: 1 << 26,
+            configuration: self.configuration,
+            on: self.eventloop
+        ) { ws in
             print("websocket connected")
             self.startTime = Date.nowInMicroSecond
-            
+
             ws.onText(self.onText)
             ws.onBinary(self.onBinary)
             ws.onClose.whenComplete { result in
-                let closeResult = self.onClose(closeCode: ws.closeCode ?? .unknown(WebSocketErrorCode.missingErrorCode), closingResult: result)
+                let closeResult = self.onClose(
+                    closeCode: ws.closeCode ?? .unknown(WebSocketErrorCode.missingErrorCode),
+                    closingResult: result
+                )
                 switch closeResult {
                 case .success:
                     if let onFinish = self.onFinish {
-                        onFinish(UploadClient.generateMeasurementProgress(startTime: self.startTime, numBytes: self.numBytes, direction: .upload), nil)
+                        onFinish(
+                            UploadClient.generateMeasurementProgress(
+                                startTime: self.startTime,
+                                numBytes: self.numBytes,
+                                direction: .upload
+                            ),
+                            nil
+                        )
                     }
                     ws.close(code: .normalClosure, promise: promise)
                 case .failure(let error):
                     if let onFinish = self.onFinish {
-                        onFinish(UploadClient.generateMeasurementProgress(startTime: self.startTime, numBytes: self.numBytes, direction: .upload), error)
+                        onFinish(
+                            UploadClient.generateMeasurementProgress(
+                                startTime: self.startTime,
+                                numBytes: self.numBytes,
+                                direction: .upload
+                                ),
+                                error
+                            )
                     }
                     ws.close(code: .goingAway, promise: promise)
                 }
             }
-            
+
             self.upload(using: ws)
         }.wait()
         return promise.futureResult
     }
-    
+
     func stop() throws {
         try self.eventloop.next().close()
     }
-    
+
     func onText(ws: WebSocketKit.WebSocket, text: String) {
         let buffer = ByteBuffer(string: text)
         do {
@@ -92,7 +115,7 @@ internal final class UploadClient: SpeedTestable {
             print("onText Error: \(error)")
         }
     }
-    
+
     func onBinary(ws: WebSocket, bytes: ByteBuffer) {
         do {
             // this should not be invoked in upload test
@@ -101,13 +124,13 @@ internal final class UploadClient: SpeedTestable {
             print("Cannot close connection due to policy violation")
         }
     }
-    
+
     private func upload(using ws: WebSocket) {
         let start = Date.nowInMicroSecond
         var currentLoad = MIN_MESSAGE_SIZE
         while Date.nowInMicroSecond - start < MEASUREMENT_DURATION {
             let loadSize = calibrateLoadSize(initial: currentLoad, ws: ws)
-            
+
             if ws.bufferedBytes < 7 * loadSize {
                 let payload = ByteBuffer(repeating: 0, count: loadSize)
                 ws.send(payload)
@@ -122,7 +145,13 @@ internal final class UploadClient: SpeedTestable {
         let current = Date.nowInMicroSecond
         if let onProgress = self.onProgress {
             if current - previousTimeMark >= MEASUREMENT_REPORT_INTERVAL {
-                onProgress(UploadClient.generateMeasurementProgress(startTime: self.startTime, numBytes: self.numBytes - Int64(currentBufferSize), direction: .upload))
+                onProgress(
+                    UploadClient.generateMeasurementProgress(
+                        startTime: self.startTime,
+                        numBytes: self.numBytes - Int64(currentBufferSize),
+                        direction: .upload
+                    )
+                )
                 previousTimeMark = current
             }
         }

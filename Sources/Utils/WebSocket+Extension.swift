@@ -15,7 +15,12 @@ import WebSocketKit
 import NIOCore
 
 extension WebSocket {
-    public static func connect(to url: String, headers: HTTPHeaders = [:], configuration: WebSocketClient.Configuration = .init(), on eventloopGroup: EventLoopGroup) async throws -> WebSocket {
+    public static func connect(
+        to url: String,
+        headers: HTTPHeaders = [:],
+        configuration: WebSocketClient.Configuration = .init(),
+        on eventloopGroup: EventLoopGroup
+    ) async throws -> WebSocket {
         return try await withCheckedThrowingContinuation { continuation in
             do {
                 try self.connect(to: url, headers: headers, configuration: configuration, on: eventloopGroup) { ws in

@@ -16,15 +16,15 @@ import NIOWebSocket
 import NIOCore
 
 public protocol SpeedTestable {
-    
+
     init(url: URL)
     var onMeasurement: ((SpeedTestMeasurement) -> Void)? { get set }
     var onProgress: ((MeasurementProgress) -> Void)? { get set }
     var onFinish: ((MeasurementProgress, Error?) -> Void)? { get set }
-    
+
     func start() throws -> EventLoopFuture<Void>
     func stop() throws
-    
+
     func onText(ws: WebSocket, text: String)
     func onBinary(ws: WebSocket, bytes: ByteBuffer)
 }
@@ -33,7 +33,7 @@ extension SpeedTestable {
     var httpHeaders: HTTPHeaders {
         return HTTPHeaders([("Sec-Websocket-Protocol", "net.measurementlab.ndt.v7")])
     }
-    
+
     var configuration: WebSocketClient.Configuration {
         var config = WebSocketClient.Configuration()
         config.maxFrameSize = MAX_MESSAGE_SIZE
@@ -56,8 +56,16 @@ extension SpeedTestable {
             return .failure(.websocketCloseWithError(error))
         }
     }
-    
-    static func generateMeasurementProgress(startTime: Int64, numBytes: Int64, direction: TestDirection) -> MeasurementProgress {
-        return MeasurementProgress.create(elapedTime: Date.nowInMicroSecond - startTime, numBytes: numBytes, direction: direction)
+
+    static func generateMeasurementProgress(
+        startTime: Int64,
+        numBytes: Int64,
+        direction: TestDirection
+    ) -> MeasurementProgress {
+        return MeasurementProgress.create(
+            elapedTime: Date.nowInMicroSecond - startTime,
+            numBytes: numBytes,
+            direction: direction
+        )
     }
 }
