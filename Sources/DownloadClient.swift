@@ -97,7 +97,10 @@ internal final class DownloadClient: SpeedTestable {
     }
 
     func stop() throws {
-        try self.eventloop.next().close()
+        var itr = self.eventloop.makeIterator()
+        while let next = itr.next() {
+            try next.close()
+        }
     }
 
     func onText(ws: WebSocket, text: String) {
