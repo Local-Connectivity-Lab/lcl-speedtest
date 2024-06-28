@@ -9,7 +9,7 @@ let package = Package(
         .macOS(.v10_15), .iOS(.v14), .tvOS(.v13), .watchOS(.v6)
     ],
     products: [
-        .library(name: "LCLSpeedTest", targets: ["LCLSpeedTest"])
+        .library(name: "LCLSpeedtest", targets: ["LCLSpeedtest"])
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.62.0"),
@@ -17,10 +17,8 @@ let package = Package(
         .package(url: "https://github.com/johnnzhou/websocket-kit.git", branch: "main")
     ],
     targets: [
-        // Targets are the basic building blocks of a package, defining a module or a test suite.
-        // Targets can depend on other targets in this package and products from dependencies.
         .target(
-            name: "LCLSpeedTest",
+            name: "LCLSpeedtest",
             dependencies: [
                 .product(name: "NIO", package: "swift-nio"),
                 .product(name: "NIOCore", package: "swift-nio"),
