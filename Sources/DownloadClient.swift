@@ -27,7 +27,7 @@ internal final class DownloadClient: SpeedTestable {
 
     required init(url: URL) {
         self.url = url
-        self.eventloop = MultiThreadedEventLoopGroup(numberOfThreads: 1)
+        self.eventloop = MultiThreadedEventLoopGroup.singleton
         self.startTime = 0
         self.previousTimeMark = 0
         self.numBytes = 0

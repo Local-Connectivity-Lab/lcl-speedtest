@@ -27,7 +27,7 @@ internal final class UploadClient: SpeedTestable {
 
     required init(url: URL) {
         self.url = url
-        self.eventloop = MultiThreadedEventLoopGroup(numberOfThreads: 1)
+        self.eventloop = MultiThreadedEventLoopGroup.singleton
         self.startTime = 0
         self.previousTimeMark = 0
         self.numBytes = 0
@@ -101,7 +101,10 @@ internal final class UploadClient: SpeedTestable {
     }
 
     func stop() throws {
-        try self.eventloop.next().close()
+        var itr = self.eventloop.makeIterator()
+        while let next = itr.next() {
+            try next.close()
+        }
     }
 
     func onText(ws: WebSocketKit.WebSocket, text: String) {
@@ -125,6 +128,10 @@ internal final class UploadClient: SpeedTestable {
         }
     }
 
+    /// Send as many bytes to the server as possible within the `MEASUREMENT_DURATION`.
+    /// Start the message size from `MIN_MESSAGE_SIZE` and increment the size according to the number of bytes queued.
+    /// We always assume that the buffer size in the websocket is 7 times the current load.
+    /// The system will always try to send as many bytes as possible, and will try to update the progress to the caller.
     private func upload(using ws: WebSocket) {
         let start = Date.nowInMicroSecond
         var currentLoad = MIN_MESSAGE_SIZE
@@ -141,6 +148,8 @@ internal final class UploadClient: SpeedTestable {
         }
     }
 
+    /// report the current measurement result to the caller using the current buffer size
+    /// if the time elapsed from the last report is greater than `MEASUREMENT_REPORT_INTERVAL`.
     private func reportToClient(currentBufferSize: Int) {
         let current = Date.nowInMicroSecond
         if let onProgress = self.onProgress {
@@ -157,8 +166,20 @@ internal final class UploadClient: SpeedTestable {
         }
     }
 
+    /// Calibrate the buffer size that will be sent to the server according to the initial buffer size and the amount of buffer
+    /// currently queued in the websocket pipeline.
+    ///
+    /// The new size increment by a factor of 16 by default. However, if the new size exceeds the `MAX_MESSAGE_SIZE` limit,
+    /// then the size will be set to `MAX_MESSAGE_SIZE`.
+    /// If there are sufficient amount of spaces available in the websocket buffer, then the system will double the buffer size to maximize the network load.
+    ///
+    /// - Parameters:
+    ///     - initial: the initial buffer size
+    ///     - ws: the websocket object that knows the number of bytes currently queued in the system.
+    ///
+    /// - Returns: the number of bytes for next round of upload.
     private func calibrateLoadSize(initial size: Int, ws: WebSocket) -> Int {
-        let nextSizeIncrement: Int = size >= MAX_MESSAGE_SIZE ? .max : 16 * size
+        let nextSizeIncrement: Int = size >= MAX_MESSAGE_SIZE ? MAX_MESSAGE_SIZE : 16 * size
         return (self.numBytes - Int64(ws.bufferedBytes) >= nextSizeIncrement) ? size * 2 : size
     }
 }

@@ -16,15 +16,28 @@ import Foundation
 import FoundationNetworking
 #endif
 
+/// The M-Lab test server location
 internal struct TestServerLocation: Codable {
+    /// The contry in which the test server is located.
     let country: String?
+
+    /// The city in which the test server is located.
     let city: String?
 }
 
+/// The M-Lab test server URL
 internal struct TestServerURLs: Codable {
+
+    /// The download test server URL (secure, start with wss).
     let downloadPath: String
+
+    /// The upload test server URL (secure, start with wss).
     let uploadPath: String
+
+    /// The download test server URL (insecure, start with ws)
     let insecureDownloadPath: String
+
+    /// The upload test server URL (insecure, start with ws)
     let insecureUploadPath: String
 
     enum CodingKeys: String, CodingKey {
@@ -35,17 +48,24 @@ internal struct TestServerURLs: Codable {
     }
 }
 
+/// The M-Lab test server
 internal struct TestServer: Codable {
+    /// The name of the machine.
     let machine: String
+
+    /// The location of the test server. See `TestServerLocation`.
     let location: TestServerLocation
+
+    /// The URLs of the test servers. See `TestServerURL`.
     let urls: TestServerURLs
 }
 
-internal struct TestServerResponse: Codable {
-    let results: [TestServer]
-}
-
 extension TestServer {
+
+    /// Discover available test servers from M-Lab asynchronously.
+    ///
+    /// - Returns: an array of `TestServer`
+    /// - Throws: `SpeedTestError.testServersOutOfCapacity` is test server is out of capacity and there is no test server available.
     internal static func discover() async throws -> [TestServer] {
         let result = try await Networking.fetch(from: DISCOVER_SERVER_URL)
         if result.isEmpty {
@@ -54,4 +74,11 @@ extension TestServer {
         let response = try JSONDecoder().decode(TestServerResponse.self, from: result)
         return response.results
     }
+}
+
+/// Response object from M-lab server regarding the test server information.
+internal struct TestServerResponse: Codable {
+
+    /// An array of `TestServer` for available test servers.
+    let results: [TestServer]
 }
