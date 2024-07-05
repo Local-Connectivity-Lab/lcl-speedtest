@@ -12,6 +12,10 @@
 import Foundation
 
 extension Date {
+
+    /// Get the current time in microsecond
+    ///
+    /// - Returns: current time in microsecond.
     static var nowInMicroSecond: Int64 {
         if #available(macOS 12, iOS 15, *) {
             Int64(Date.now.timeIntervalSince1970 * 1000_000)

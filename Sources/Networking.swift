@@ -17,6 +17,17 @@ import FoundationNetworking
 #endif
 
 internal struct Networking {
+
+    /// Fetch data from the given url asynchronously.
+    ///
+    /// - Parameters:
+    ///     - from: the URL string from which the data will be fetched.
+    ///     - cachePolicy: the cache policy used when fetching content from the URL. Default to using protocol cache policy.
+    ///     - timeout: the number of time, in second, interval for the request. The default is 60.0s.
+    ///     - retry: the number of retry before giving up fetching content from the given URL.
+    /// - Returns: the raw data queried from the endpoint.
+    /// - Throws: `SpeedTestError.invalidURL` is given URL string is invalid. `SpeedTestError.fetchContentFailed` if fetching from
+    /// the target server failed. `SpeedTestError.testServersOutOfCapacity` is test servers are out of capacity. `SpeedTestError.noDataFromServer` if server returns no data.
     static func fetch(
         from urlString: String,
         cachePolicy: URLRequest.CachePolicy = .useProtocolCachePolicy,
@@ -44,6 +55,14 @@ internal struct Networking {
         throw SpeedTestError.noDataFromServer
     }
 
+    /// Fetch data from the given request asynchronously.
+    ///
+    /// - Parameters:
+    ///     - from: the `URLRequest` that defines the endpoint from which the data will be fetched.
+    ///
+    /// - Returns: the raw data queried from the endpoint according to the `URLRequest`.
+    /// - Throws: `SpeedTestError.testServersOutOfCapacity` if server returns 204.
+    /// `SpeedTestError.fetchContentFailed` if server returns status code not in the 200-299 range.
     static func fetch(from request: URLRequest) async throws -> Data {
         return try await withCheckedThrowingContinuation { continuation in
             let task = URLSession.shared.dataTask(with: request) { data, response, error in

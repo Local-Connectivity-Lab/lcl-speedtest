@@ -12,8 +12,16 @@
 
 import Foundation
 
+/// The types of test supported by `LCL Speedtest`.
+/// Caller should specify one of the test type to initialize the test environment.
 public enum TestType: String {
+
+    /// Conduct download speed test.
     case download
+
+    /// Conduct upload speed test.
     case upload
+
+    /// Conduct download and upload tests.
     case downloadAndUpload
 }
