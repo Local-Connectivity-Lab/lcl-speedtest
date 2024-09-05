@@ -13,7 +13,7 @@
 import Foundation
 import WebSocketKit
 import NIOWebSocket
-import NIOCore
+ import NIOCore
 
 /// This protocol defines callbacks to monitor the speed test progress, including the measurement progress,
 /// measurement result, and potential errors when test finishes.
@@ -91,13 +91,13 @@ extension SpeedTestable {
     ///
     /// - Returns: a `MeasurementProgress` containing the sampling period, number of bytes transmitted and test direction.
     static func generateMeasurementProgress(
-        startTime: Int64,
-        numBytes: Int64,
+        startTime: NIODeadline,
+        numBytes: Int,
         direction: TestDirection
     ) -> MeasurementProgress {
         return MeasurementProgress.create(
-            elapedTime: Date.nowInMicroSecond - startTime,
-            numBytes: numBytes,
+            elapedTime: (NIODeadline.now() - startTime).nanoseconds / 1000,
+            numBytes: Int64(numBytes),
             direction: direction
         )
     }

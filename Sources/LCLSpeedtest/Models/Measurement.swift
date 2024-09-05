@@ -127,4 +127,10 @@ extension MeasurementProgress {
             test: direction.rawValue
         )
     }
+
+    var mbps: Double {
+        let elapsedTime = appInfo.elapsedTime  // microsecond
+        let numBytes = appInfo.numBytes
+        return Double(numBytes * 8) / Double(elapsedTime)
+    }
 }

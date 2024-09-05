@@ -20,26 +20,19 @@ internal final class DownloadClient: SpeedTestable {
     private let url: URL
     private let eventloop: MultiThreadedEventLoopGroup
 
-    private var startTime: Int64
-    private var numBytes: Int64
-    private var previousTimeMark: Int64
+    private var startTime: NIODeadline
+    private var totalBytes: Int
+    private var previousTimeMark: NIODeadline
     private let jsonDecoder: JSONDecoder
+    private let emitter = DispatchQueue(label: "downloader", qos: .userInteractive)
 
     required init(url: URL) {
         self.url = url
-        self.eventloop = MultiThreadedEventLoopGroup.singleton
-        self.startTime = 0
-        self.previousTimeMark = 0
-        self.numBytes = 0
+        self.eventloop = MultiThreadedEventLoopGroup(numberOfThreads: 4)
+        self.startTime = .now()
+        self.previousTimeMark = .now()
+        self.totalBytes = 0
         self.jsonDecoder = JSONDecoder()
-    }
-
-    deinit {
-        do {
-            try self.eventloop.syncShutdownGracefully()
-        } catch {
-            fatalError("Failed to close channel gracefully: \(error)")
-        }
     }
 
     var onMeasurement: ((SpeedTestMeasurement) -> Void)?
@@ -48,14 +41,15 @@ internal final class DownloadClient: SpeedTestable {
 
     func start() throws -> EventLoopFuture<Void> {
         let promise = self.eventloop.next().makePromise(of: Void.self)
-        try WebSocket.connect(
+        WebSocket.connect(
             to: self.url,
             headers: self.httpHeaders,
             configuration: self.configuration,
             on: self.eventloop
         ) { ws in
             print("websocket connected")
-            self.startTime = Date.nowInMicroSecond
+
+            self.startTime = .now()
 
             ws.onText(self.onText)
             ws.onBinary(self.onBinary)
@@ -68,31 +62,35 @@ internal final class DownloadClient: SpeedTestable {
                 switch closeResult {
                 case .success:
                     if let onFinish = self.onFinish {
-                        onFinish(
-                            DownloadClient.generateMeasurementProgress(
-                                startTime: self.startTime,
-                                numBytes: self.numBytes,
-                                direction: .download
-                            ),
-                            nil
-                        )
+                        self.emitter.async {
+                            onFinish(
+                                DownloadClient.generateMeasurementProgress(
+                                    startTime: self.startTime,
+                                    numBytes: self.totalBytes,
+                                    direction: .download
+                                ),
+                                nil
+                            )
+                        }
                     }
                     ws.close(code: .normalClosure, promise: promise)
                 case .failure(let error):
                     if let onFinish = self.onFinish {
-                        onFinish(
-                            DownloadClient.generateMeasurementProgress(
-                                startTime: self.startTime,
-                                 numBytes: self.numBytes,
-                                  direction: .download
-                            ),
-                            error
-                        )
+                        self.emitter.async {
+                            onFinish(
+                                DownloadClient.generateMeasurementProgress(
+                                    startTime: self.startTime,
+                                     numBytes: self.totalBytes,
+                                      direction: .download
+                                ),
+                                error
+                            )
+                        }
                     }
                     ws.close(code: .goingAway, promise: promise)
                 }
             }
-        }.wait()
+        }.cascadeFailure(to: promise)
         return promise.futureResult
     }
 
@@ -107,9 +105,11 @@ internal final class DownloadClient: SpeedTestable {
         let buffer = ByteBuffer(string: text)
         do {
             let measurement: SpeedTestMeasurement = try jsonDecoder.decode(SpeedTestMeasurement.self, from: buffer)
-            self.numBytes += Int64(buffer.readableBytes)
+            self.totalBytes += buffer.readableBytes
             if let onMeasurement = self.onMeasurement {
-                onMeasurement(measurement)
+                self.emitter.async {
+                    onMeasurement(measurement)
+                }
             }
         } catch {
             print("onText Error: \(error)")
@@ -117,18 +117,20 @@ internal final class DownloadClient: SpeedTestable {
     }
 
     func onBinary(ws: WebSocket, bytes: ByteBuffer) {
-        self.numBytes += Int64(bytes.readableBytes)
+        self.totalBytes += bytes.readableBytes
         if let onProgress = self.onProgress {
-            let current = Date.nowInMicroSecond
-            if current - previousTimeMark >= MEASUREMENT_REPORT_INTERVAL {
-                onProgress(
-                    DownloadClient.generateMeasurementProgress(
-                        startTime: self.startTime,
-                         numBytes: self.numBytes,
-                         direction: .download
+            let current = NIODeadline.now()
+            if (current - self.previousTimeMark) > TimeAmount.milliseconds(MEASUREMENT_REPORT_INTERVAL) {
+                self.emitter.async {
+                    onProgress(
+                        DownloadClient.generateMeasurementProgress(
+                            startTime: self.startTime,
+                            numBytes: self.totalBytes,
+                            direction: .download
+                        )
                     )
-                )
-                previousTimeMark = current
+                }
+                self.previousTimeMark = current
             }
         }
     }
