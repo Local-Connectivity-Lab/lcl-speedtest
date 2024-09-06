@@ -18,7 +18,7 @@ import NIOWebSocket
 
 internal final class DownloadClient: SpeedTestable {
     private let url: URL
-    private let eventloop: MultiThreadedEventLoopGroup
+    private let eventloopGroup: MultiThreadedEventLoopGroup
 
     private var startTime: NIODeadline
     private var totalBytes: Int
@@ -28,7 +28,7 @@ internal final class DownloadClient: SpeedTestable {
 
     required init(url: URL) {
         self.url = url
-        self.eventloop = MultiThreadedEventLoopGroup(numberOfThreads: 4)
+        self.eventloopGroup = MultiThreadedEventLoopGroup(numberOfThreads: 4)
         self.startTime = .now()
         self.previousTimeMark = .now()
         self.totalBytes = 0
@@ -40,12 +40,12 @@ internal final class DownloadClient: SpeedTestable {
     var onFinish: ((MeasurementProgress, Error?) -> Void)?
 
     func start() throws -> EventLoopFuture<Void> {
-        let promise = self.eventloop.next().makePromise(of: Void.self)
+        let promise = self.eventloopGroup.next().makePromise(of: Void.self)
         WebSocket.connect(
             to: self.url,
             headers: self.httpHeaders,
             configuration: self.configuration,
-            on: self.eventloop
+            on: self.eventloopGroup
         ) { ws in
             print("websocket connected")
 
@@ -95,7 +95,7 @@ internal final class DownloadClient: SpeedTestable {
     }
 
     func stop() throws {
-        var itr = self.eventloop.makeIterator()
+        var itr = self.eventloopGroup.makeIterator()
         while let next = itr.next() {
             try next.close()
         }
