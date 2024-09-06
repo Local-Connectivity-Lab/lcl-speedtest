@@ -168,7 +168,7 @@ internal final class UploadClient: SpeedTestable {
     }
 
     /// report the current measurement result to the caller using the current buffer size
-    /// if the time elapsed from the last report is greater than `MEASUREMENT_REPORT_INTERVAL`.\
+    /// if the time elapsed from the last report is greater than `MEASUREMENT_REPORT_INTERVAL`.
     private func reportToClient(currentBufferSize: Int) {
         guard let onProgress = self.onProgress else {
             return
