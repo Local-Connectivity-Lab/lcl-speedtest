@@ -12,7 +12,7 @@ let package = Package(
         .library(name: "LCLSpeedtest", targets: ["LCLSpeedtest"])
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-nio.git", from: "2.62.0"),
+        .package(url: "https://github.com/johnnzhou/swift-nio.git", branch: "main"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.5.3"),
         .package(url: "https://github.com/johnnzhou/websocket-kit.git", branch: "main")
     ],
@@ -23,10 +23,11 @@ let package = Package(
                 .product(name: "NIO", package: "swift-nio"),
                 .product(name: "NIOCore", package: "swift-nio"),
                 .product(name: "NIOPosix", package: "swift-nio"),
-                .product(name: "NIOHTTP1", package: "swift-nio"),
+                .product(name: "NIOConcurrencyHelpers", package: "swift-nio"),
                 .product(name: "Logging", package: "swift-log"),
                 .product(name: "WebSocketKit", package: "websocket-kit")
             ]
-        )
+        ),
+        .executableTarget(name: "Demo", dependencies: ["LCLSpeedtest"])
     ]
 )

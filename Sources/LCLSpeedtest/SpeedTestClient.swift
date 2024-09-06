@@ -66,11 +66,11 @@ public struct SpeedTestClient {
     }
 
     /// Run the download test using the available test servers
-    private mutating func runDownloadTest(using testServers: [TestServer]) async throws {
-        guard let downloadPath = testServers.first?.urls.downloadPath,
-                let downloadURL = URL(string: downloadPath) else {
-            throw SpeedTestError.invalidTestURL("Cannot locate URL for download test")
-        }
+   private mutating func runDownloadTest(using testServers: [TestServer]) async throws {
+       guard let downloadPath = testServers.first?.urls.downloadPath,
+               let downloadURL = URL(string: downloadPath) else {
+           throw SpeedTestError.invalidTestURL("Cannot locate URL for download test")
+       }
 
         downloader = DownloadClient(url: downloadURL)
         downloader?.onProgress = self.onDownloadProgress
