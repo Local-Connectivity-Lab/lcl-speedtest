@@ -21,7 +21,7 @@ import NIOWebSocket
 /// Implementation of this protocol need to accept an URL, which is the URL of the test server
 public protocol SpeedTestable {
 
-    init(url: URL)
+    init(url: URL, deviceName: String?)
 
     /// Callback functions that will be invoked when the measurement result is available.
     var onMeasurement: ((SpeedTestMeasurement) -> Void)? { get set }
