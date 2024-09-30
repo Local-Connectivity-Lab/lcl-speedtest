@@ -27,18 +27,19 @@ internal final class UploadClient: SpeedTestable {
     private let jsonDecoder: JSONDecoder
     private let emitter = DispatchQueue(label: "uploader", qos: .userInteractive)
 
-    required init(url: URL, deviceName: String?) {
+    required init(url: URL) {
         self.url = url
         self.eventloopGroup = MultiThreadedEventLoopGroup(numberOfThreads: 4)
         self.startTime = .now()
         self.previousTimeMark = .now()
         self.totalBytes = 0
         self.jsonDecoder = JSONDecoder()
-        self.deviceName = deviceName
+        self.deviceName = nil
     }
 
-    convenience init(url: URL) {
-        self.init(url: url, deviceName: nil)
+    convenience init(url: URL, deviceName: String?) {
+        self.init(url: url)
+        self.deviceName = deviceName
     }
 
     var onMeasurement: ((SpeedTestMeasurement) -> Void)?
