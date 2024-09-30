@@ -23,6 +23,7 @@ internal final class UploadClient: SpeedTestable {
     private var startTime: NIODeadline
     private var totalBytes: Int
     private var previousTimeMark: NIODeadline
+    private var deviceName: String?
     private let jsonDecoder: JSONDecoder
     private let emitter = DispatchQueue(label: "uploader", qos: .userInteractive)
 
@@ -33,6 +34,12 @@ internal final class UploadClient: SpeedTestable {
         self.previousTimeMark = .now()
         self.totalBytes = 0
         self.jsonDecoder = JSONDecoder()
+        self.deviceName = nil
+    }
+
+    convenience init(url: URL, deviceName: String?) {
+        self.init(url: url)
+        self.deviceName = deviceName
     }
 
     var onMeasurement: ((SpeedTestMeasurement) -> Void)?
@@ -47,6 +54,7 @@ internal final class UploadClient: SpeedTestable {
             to: self.url,
             headers: self.httpHeaders,
             queueSize: 1 << 26,
+            deviceName: self.deviceName,
             configuration: self.configuration,
             on: self.eventloopGroup
         ) { ws in

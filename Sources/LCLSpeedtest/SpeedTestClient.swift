@@ -41,17 +41,17 @@ public struct SpeedTestClient {
     public init() { }
 
     /// Start the speed test according to the test type asynchronously.
-    public mutating func start(with type: TestType) async throws {
+    public mutating func start(with type: TestType, deviceName: String? = nil) async throws {
         do {
             let testServers = try await TestServer.discover()
             switch type {
             case .download:
-                try await runDownloadTest(using: testServers)
+                try await runDownloadTest(using: testServers, deviceName: deviceName)
             case .upload:
-                try await runUploadTest(using: testServers)
+                try await runUploadTest(using: testServers, deviceName: deviceName)
             case .downloadAndUpload:
-                try await runDownloadTest(using: testServers)
-                try await runUploadTest(using: testServers)
+                try await runDownloadTest(using: testServers, deviceName: deviceName)
+                try await runUploadTest(using: testServers, deviceName: deviceName)
             }
         } catch {
             throw error
@@ -66,25 +66,25 @@ public struct SpeedTestClient {
     }
 
     /// Run the download test using the available test servers
-   private mutating func runDownloadTest(using testServers: [TestServer]) async throws {
+   private mutating func runDownloadTest(using testServers: [TestServer], deviceName: String? = nil) async throws {
        guard let downloadPath = testServers.first?.urls.downloadPath,
                let downloadURL = URL(string: downloadPath) else {
            throw SpeedTestError.invalidTestURL("Cannot locate URL for download test")
        }
 
-        downloader = DownloadClient(url: downloadURL)
+        downloader = DownloadClient(url: downloadURL, deviceName: deviceName)
         downloader?.onProgress = self.onDownloadProgress
         downloader?.onMeasurement = self.onDownloadMeasurement
         try await downloader?.start().get()
     }
 
     /// Run the upload test using the available test servers
-    private mutating func runUploadTest(using testServers: [TestServer]) async throws {
+    private mutating func runUploadTest(using testServers: [TestServer], deviceName: String? = nil) async throws {
         guard let uploadPath = testServers.first?.urls.uploadPath, let uploadURL = URL(string: uploadPath) else {
             throw SpeedTestError.invalidTestURL("Cannot locate URL for upload test")
         }
 
-        uploader = UploadClient(url: uploadURL)
+        uploader = UploadClient(url: uploadURL, deviceName: deviceName)
         uploader?.onProgress = self.onUploadProgress
         uploader?.onMeasurement = self.onUploadMeasurement
         try await uploader?.start().get()
