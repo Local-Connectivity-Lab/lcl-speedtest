@@ -11,7 +11,7 @@
 //
 
 import Foundation
-import WebSocketKit
+import LCLWebSocket
 import NIOCore
 import NIOPosix
 import NIOWebSocket
@@ -42,63 +42,64 @@ internal final class DownloadClient: SpeedTestable {
         self.deviceName = deviceName
     }
 
+    var websocketConfiguration: LCLWebSocket.Configuration {
+        .init(
+            maxFrameSize: maxMessageSize,
+            minNonFinalFragmentSize: minMessageSize,
+            deviceName: self.deviceName
+        )
+    }
+
     var onMeasurement: ((SpeedTestMeasurement) -> Void)?
     var onProgress: ((MeasurementProgress) -> Void)?
     var onFinish: ((MeasurementProgress, Error?) -> Void)?
 
     func start() throws -> EventLoopFuture<Void> {
         let promise = self.eventloopGroup.next().makePromise(of: Void.self)
-        WebSocket.connect(
-            to: self.url,
-            headers: self.httpHeaders,
-            deviceName: self.deviceName,
-            configuration: self.configuration,
-            on: self.eventloopGroup
-        ) { ws in
+
+        var client = LCLWebSocket.client(on: self.eventloopGroup)
+        client.onOpen { ws in
             print("websocket connected")
 
-            self.startTime = .now()
-
-            ws.onText(self.onText)
-            ws.onBinary(self.onBinary)
-            ws.onClose.whenComplete { result in
-                let closeResult = self.onClose(
-                    closeCode: ws.closeCode ?? .unknown(WebSocketErrorCode.missingErrorCode),
-                    closingResult: result
-                )
-
-                switch closeResult {
-                case .success:
-                    if let onFinish = self.onFinish {
-                        self.emitter.async {
-                            onFinish(
-                                DownloadClient.generateMeasurementProgress(
-                                    startTime: self.startTime,
-                                    numBytes: self.totalBytes,
-                                    direction: .download
-                                ),
-                                nil
-                            )
-                        }
+        }
+        client.onText(self.onText(ws:text:))
+        client.onBinary(self.onBinary(ws:bytes:))
+        client.onClosing { closeCode, _ in
+            let result = self.onClose(closeCode: closeCode)
+            switch result {
+            case .success:
+                if let onFinish = self.onFinish {
+                    self.emitter.async {
+                        onFinish(
+                            DownloadClient.generateMeasurementProgress(
+                                startTime: self.startTime,
+                                numBytes: self.totalBytes,
+                                direction: .download
+                            ),
+                            nil
+                        )
                     }
-                    ws.close(code: .normalClosure, promise: promise)
-                case .failure(let error):
-                    if let onFinish = self.onFinish {
-                        self.emitter.async {
-                            onFinish(
-                                DownloadClient.generateMeasurementProgress(
-                                    startTime: self.startTime,
-                                     numBytes: self.totalBytes,
-                                      direction: .download
-                                ),
-                                error
-                            )
-                        }
+                }
+            case .failure(let error):
+                if let onFinish = self.onFinish {
+                    self.emitter.async {
+                        onFinish(
+                            DownloadClient.generateMeasurementProgress(
+                                startTime: self.startTime,
+                                numBytes: self.totalBytes,
+                                direction: .download
+                            ),
+                            error
+                        )
                     }
-                    ws.close(code: .goingAway, promise: promise)
                 }
             }
-        }.cascadeFailure(to: promise)
+        }
+        client.connect(
+            to: self.url,
+            headers: self.httpHeaders,
+            configuration: self.websocketConfiguration
+        ).cascade(to: promise)
         return promise.futureResult
     }
 
@@ -109,10 +110,14 @@ internal final class DownloadClient: SpeedTestable {
         }
     }
 
+    @Sendable
     func onText(ws: WebSocket, text: String) {
         let buffer = ByteBuffer(string: text)
         do {
-            let measurement: SpeedTestMeasurement = try jsonDecoder.decode(SpeedTestMeasurement.self, from: buffer)
+            let measurement: SpeedTestMeasurement = try jsonDecoder.decode(
+                SpeedTestMeasurement.self,
+                from: buffer
+            )
             self.totalBytes += buffer.readableBytes
             if let onMeasurement = self.onMeasurement {
                 self.emitter.async {
@@ -124,11 +129,12 @@ internal final class DownloadClient: SpeedTestable {
         }
     }
 
+    @Sendable
     func onBinary(ws: WebSocket, bytes: ByteBuffer) {
         self.totalBytes += bytes.readableBytes
         if let onProgress = self.onProgress {
             let current = NIODeadline.now()
-            if (current - self.previousTimeMark) > TimeAmount.milliseconds(MEASUREMENT_REPORT_INTERVAL) {
+            if (current - self.previousTimeMark) > TimeAmount.milliseconds(measurementReportInterval) {
                 self.emitter.async {
                     onProgress(
                         DownloadClient.generateMeasurementProgress(

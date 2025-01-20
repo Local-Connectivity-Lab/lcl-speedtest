@@ -38,7 +38,7 @@ public struct SpeedTestClient {
     /// The upload client
     private var uploader: UploadClient?
 
-    public init() { }
+    public init() {}
 
     /// Start the speed test according to the test type asynchronously.
     public mutating func start(with type: TestType, deviceName: String? = nil) async throws {
@@ -66,11 +66,17 @@ public struct SpeedTestClient {
     }
 
     /// Run the download test using the available test servers
-   private mutating func runDownloadTest(using testServers: [TestServer], deviceName: String? = nil) async throws {
-       guard let downloadPath = testServers.first?.urls.downloadPath,
-               let downloadURL = URL(string: downloadPath) else {
-           throw SpeedTestError.invalidTestURL("Cannot locate URL for download test")
-       }
+    private mutating func runDownloadTest(
+        using testServers: [TestServer],
+        deviceName: String? = nil
+    )
+        async throws
+    {
+        guard let downloadPath = testServers.first?.urls.downloadPath,
+            let downloadURL = URL(string: downloadPath)
+        else {
+            throw SpeedTestError.invalidTestURL("Cannot locate URL for download test")
+        }
 
         downloader = DownloadClient(url: downloadURL, deviceName: deviceName)
         downloader?.onProgress = self.onDownloadProgress
@@ -79,8 +85,15 @@ public struct SpeedTestClient {
     }
 
     /// Run the upload test using the available test servers
-    private mutating func runUploadTest(using testServers: [TestServer], deviceName: String? = nil) async throws {
-        guard let uploadPath = testServers.first?.urls.uploadPath, let uploadURL = URL(string: uploadPath) else {
+    private mutating func runUploadTest(
+        using testServers: [TestServer],
+        deviceName: String? = nil
+    )
+        async throws
+    {
+        guard let uploadPath = testServers.first?.urls.uploadPath,
+            let uploadURL = URL(string: uploadPath)
+        else {
             throw SpeedTestError.invalidTestURL("Cannot locate URL for upload test")
         }
 

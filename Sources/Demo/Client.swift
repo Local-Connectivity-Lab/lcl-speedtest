@@ -9,6 +9,7 @@ struct Client {
         client.onDownloadProgress = { progress in
             print("progress: \(progress.convertTo(unit: .Mbps)) mbps")
         }
+
         try await client.start(with: .download)
     }
 }
@@ -18,7 +19,7 @@ enum MeasurementUnit: String, CaseIterable, Identifiable, Encodable {
     case Mbps
     case MBps
 
-    var id: Self {self}
+    var id: Self { self }
 
     var string: String {
         switch self {
@@ -34,21 +35,17 @@ extension MeasurementProgress {
 
     /// data in Mbps
     var defaultValueInMegaBits: Double {
-        get {
-            self.convertTo(unit: .Mbps)
-        }
+        self.convertTo(unit: .Mbps)
     }
 
     /// data in MB/s
     var defaultValueInMegaBytes: Double {
-        get {
-            self.convertTo(unit: .MBps)
-        }
+        self.convertTo(unit: .MBps)
     }
 
     /**
      Convert the measurement data to the given unit
-     
+
      - Parameters:
         unit: the target unit to convert to
      - Returns: the value in `Double` under the specified unit measurement
@@ -56,7 +53,7 @@ extension MeasurementProgress {
     func convertTo(unit: MeasurementUnit) -> Double {
         let elapsedTime = appInfo.elapsedTime
         let numBytes = appInfo.numBytes
-        let time = Float64(elapsedTime) / 1000000
+        let time = Float64(elapsedTime) / 1_000_000
         var speed = Float64(numBytes) / time
         switch unit {
         case .Mbps:
@@ -65,7 +62,7 @@ extension MeasurementProgress {
             speed *= 1
         }
 
-        speed /= 1000000
+        speed /= 1_000_000
         return speed
     }
 }

@@ -67,7 +67,7 @@ extension TestServer {
     /// - Returns: an array of `TestServer`
     /// - Throws: `SpeedTestError.testServersOutOfCapacity` is test server is out of capacity and there is no test server available.
     internal static func discover() async throws -> [TestServer] {
-        let result = try await Networking.fetch(from: DISCOVER_SERVER_URL)
+        let result = try await Networking.fetch(from: discoverServerURL)
         if result.isEmpty {
             throw SpeedTestError.testServersOutOfCapacity
         }

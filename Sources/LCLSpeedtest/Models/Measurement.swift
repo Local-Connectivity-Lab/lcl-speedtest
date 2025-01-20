@@ -120,8 +120,14 @@ public struct MeasurementProgress: Codable {
 }
 
 extension MeasurementProgress {
-    public static func create(elapedTime: Int64, numBytes: Int64, direction: TestDirection) -> MeasurementProgress {
-        return MeasurementProgress(
+    public static func create(
+        elapedTime: Int64,
+        numBytes: Int64,
+        direction: TestDirection
+    )
+        -> MeasurementProgress
+    {
+        MeasurementProgress(
             appInfo: AppInfo(elapsedTime: elapedTime, numBytes: numBytes),
             origin: "client",
             test: direction.rawValue

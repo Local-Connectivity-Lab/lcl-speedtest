@@ -11,7 +11,7 @@
 //
 
 import Foundation
-import WebSocketKit
+import LCLWebSocket
 import NIOCore
 import NIOPosix
 import NIOWebSocket
@@ -42,6 +42,14 @@ internal final class UploadClient: SpeedTestable {
         self.deviceName = deviceName
     }
 
+    var websocketConfiguration: LCLWebSocket.Configuration {
+        .init(
+            maxFrameSize: maxMessageSize,
+            minNonFinalFragmentSize: minMessageSize,
+            deviceName: self.deviceName
+        )
+    }
+
     var onMeasurement: ((SpeedTestMeasurement) -> Void)?
 
     var onProgress: ((MeasurementProgress) -> Void)?
@@ -50,57 +58,48 @@ internal final class UploadClient: SpeedTestable {
 
     func start() throws -> EventLoopFuture<Void> {
         let promise = self.eventloopGroup.next().makePromise(of: Void.self)
-        WebSocket.connect(
-            to: self.url,
-            headers: self.httpHeaders,
-            queueSize: 1 << 26,
-            deviceName: self.deviceName,
-            configuration: self.configuration,
-            on: self.eventloopGroup
-        ) { ws in
+        var client = LCLWebSocket.client(on: self.eventloopGroup)
+        client.onOpen { ws in
             print("websocket connected")
-
-            ws.onText(self.onText)
-            ws.onBinary(self.onBinary)
-            ws.onClose.whenComplete { result in
-                let closeResult = self.onClose(
-                    closeCode: ws.closeCode ?? .unknown(WebSocketErrorCode.missingErrorCode),
-                    closingResult: result
-                )
-                switch closeResult {
-                case .success:
-                    if let onFinish = self.onFinish {
-                        self.emitter.async {
-                            onFinish(
-                                UploadClient.generateMeasurementProgress(
-                                    startTime: self.startTime,
-                                    numBytes: self.totalBytes,
-                                    direction: .upload
-                                ),
-                                nil
-                            )
-                        }
+            self.upload(using: ws).cascadeFailure(to: promise)
+        }
+        client.onText(self.onText(ws:text:))
+        client.onBinary(self.onBinary(ws:bytes:))
+        client.onClosing { closeCode, _ in
+            let result = self.onClose(closeCode: closeCode)
+            switch result {
+            case .success:
+                if let onFinish = self.onFinish {
+                    self.emitter.async {
+                        onFinish(
+                            UploadClient.generateMeasurementProgress(
+                                startTime: self.startTime,
+                                numBytes: self.totalBytes,
+                                direction: .upload
+                            ),
+                            nil
+                        )
                     }
-                    ws.close(code: .normalClosure, promise: promise)
-                case .failure(let error):
-                    if let onFinish = self.onFinish {
-                        self.emitter.async {
-                            onFinish(
-                                UploadClient.generateMeasurementProgress(
-                                    startTime: self.startTime,
-                                    numBytes: self.totalBytes,
-                                    direction: .upload
-                                ),
-                                error
-                            )
-                        }
+                }
+            case .failure(let error):
+                if let onFinish = self.onFinish {
+                    self.emitter.async {
+                        onFinish(
+                            UploadClient.generateMeasurementProgress(
+                                startTime: self.startTime,
+                                numBytes: self.totalBytes,
+                                direction: .upload
+                            ),
+                            error
+                        )
                     }
-                    ws.close(code: .goingAway, promise: promise)
                 }
             }
+        }
 
-            self.upload(using: ws).cascadeFailure(to: promise)
-        }.cascadeFailure(to: promise)
+        client.connect(to: self.url, headers: self.httpHeaders, configuration: self.configuration)
+            .cascade(to: promise)
+
         return promise.futureResult
     }
 
@@ -111,10 +110,14 @@ internal final class UploadClient: SpeedTestable {
         }
     }
 
-    func onText(ws: WebSocketKit.WebSocket, text: String) {
+    @Sendable
+    func onText(ws: WebSocket, text: String) {
         let buffer = ByteBuffer(string: text)
         do {
-            let measurement: SpeedTestMeasurement = try self.jsonDecoder.decode(SpeedTestMeasurement.self, from: buffer)
+            let measurement: SpeedTestMeasurement = try self.jsonDecoder.decode(
+                SpeedTestMeasurement.self,
+                from: buffer
+            )
             if let onMeasurement = self.onMeasurement {
                 self.emitter.async {
                     onMeasurement(measurement)
@@ -125,6 +128,7 @@ internal final class UploadClient: SpeedTestable {
         }
     }
 
+    @Sendable
     func onBinary(ws: WebSocket, bytes: ByteBuffer) {
         do {
             // this should not be invoked in upload test
@@ -134,8 +138,8 @@ internal final class UploadClient: SpeedTestable {
         }
     }
 
-    /// Send as many bytes to the server as possible within the `MEASUREMENT_DURATION`.
-    /// Start the message size from `MIN_MESSAGE_SIZE` and increment the size according to the number of bytes queued.
+    /// Send as many bytes to the server as possible within the `measurementDuration`.
+    /// Start the message size from `minMessageSize` and increment the size according to the number of bytes queued.
     /// We always assume that the buffer size in the websocket is 7 times the current load.
     /// The system will always try to send as many bytes as possible, and will try to update the progress to the caller.
     private func upload(using ws: WebSocket) -> EventLoopFuture<Void> {
@@ -145,23 +149,26 @@ internal final class UploadClient: SpeedTestable {
         let promise = el.makePromise(of: Void.self)
 
         func send(newLoadSize: Int) {
-            guard NIODeadline.now() - self.startTime < TimeAmount.seconds(MEASUREMENT_DURATION) else {
+            guard NIODeadline.now() - self.startTime < TimeAmount.seconds(measurementDuration) else {
                 promise.succeed()
                 return
             }
             let el = self.eventloopGroup.next()
-            ws.getBufferedBytes().hop(to: el).map { bufferedBytes in
-                let nextIncrementSize = newLoadSize > MAX_MESSAGE_SIZE ? MAX_MESSAGE_SIZE : SCALING_FACTOR * newLoadSize
-                let loadSize = (self.totalBytes - bufferedBytes > nextIncrementSize) ? newLoadSize * 2 : newLoadSize
+            ws.bufferedAmount.hop(to: el).map { bufferedBytes in
+                let nextIncrementSize =
+                    newLoadSize > maxMessageSize ? maxMessageSize : scalingFactor * newLoadSize
+                let loadSize =
+                    (self.totalBytes - bufferedBytes > nextIncrementSize) ? newLoadSize * 2 : newLoadSize
                 if bufferedBytes < 7 * loadSize {
-                    let payload = ws.allocator.buffer(repeating: 0, count: loadSize)
+
+                    let payload = ws.channel.allocator.buffer(repeating: 0, count: loadSize)
                     let p = el.makePromise(of: Void.self)
-                    ws.send(payload, promise: p)
+                    ws.send(payload, opcode: .binary, promise: p)
                     p.futureResult.cascadeFailure(to: promise)
                     self.totalBytes += loadSize
                 }
 
-                ws.getBufferedBytes().hop(to: el).map { buffered in
+                ws.bufferedAmount.hop(to: el).map { buffered in
                     self.reportToClient(currentBufferSize: buffered)
                 }.cascadeFailure(to: promise)
 
@@ -170,20 +177,20 @@ internal final class UploadClient: SpeedTestable {
         }
 
         self.previousTimeMark = .now()
-        send(newLoadSize: MIN_MESSAGE_SIZE)
+        send(newLoadSize: minMessageSize)
 
         return promise.futureResult
     }
 
     /// report the current measurement result to the caller using the current buffer size
-    /// if the time elapsed from the last report is greater than `MEASUREMENT_REPORT_INTERVAL`.
+    /// if the time elapsed from the last report is greater than `measurementReportInterval`.
     private func reportToClient(currentBufferSize: Int) {
         guard let onProgress = self.onProgress else {
             return
         }
 
         let current = NIODeadline.now()
-        if (current - self.previousTimeMark) > TimeAmount.milliseconds(MEASUREMENT_REPORT_INTERVAL) {
+        if (current - self.previousTimeMark) > TimeAmount.milliseconds(measurementReportInterval) {
             self.emitter.async {
                 onProgress(
                     UploadClient.generateMeasurementProgress(

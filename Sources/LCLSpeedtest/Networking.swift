@@ -38,7 +38,7 @@ internal struct Networking {
             throw SpeedTestError.invalidURL
         }
         let request = URLRequest(url: url, cachePolicy: cachePolicy, timeoutInterval: timeout)
-        var retryCount = min(retry, MAX_RETRY_COUNT) + 1
+        var retryCount = min(retry, maxRetryCount) + 1
         while retryCount != 0 {
             retryCount -= 1
             do {
@@ -64,7 +64,7 @@ internal struct Networking {
     /// - Throws: `SpeedTestError.testServersOutOfCapacity` if server returns 204.
     /// `SpeedTestError.fetchContentFailed` if server returns status code not in the 200-299 range.
     static func fetch(from request: URLRequest) async throws -> Data {
-        return try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { continuation in
             let task = URLSession.shared.dataTask(with: request) { data, response, error in
                 if let error = error {
                     continuation.resume(throwing: error)
