@@ -93,7 +93,7 @@ internal final class UploadClient: SpeedTestable {
             }
         }
         
-        client.connect(to: self.url, headers: self.httpHeaders, configuration: self.configuration).cascadeFailure(to: promise)
+        client.connect(to: self.url, headers: self.httpHeaders, configuration: self.configuration).cascade(to: promise)
         
         return promise.futureResult
     }
