@@ -17,7 +17,7 @@ let maxRetryCount: UInt8 = 5
 
 /// M-Lab discover server URL
 let discoverServerURL =
-  "https://locate.measurementlab.net/v2/nearest/ndt/ndt7?client_name=ndt7-client-ios"
+    "https://locate.measurementlab.net/v2/nearest/ndt/ndt7?client_name=ndt7-client-ios"
 
 /// Maximum message size to send in one websocket frame.
 let maxMessageSize: Int = 1 << 23
