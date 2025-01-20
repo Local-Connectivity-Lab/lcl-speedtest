@@ -14,5 +14,5 @@ import Foundation
 import NIOWebSocket
 
 extension WebSocketErrorCode {
-    static let missingErrorCode: UInt16 = 4000
+  static let missingErrorCode: UInt16 = 4000
 }

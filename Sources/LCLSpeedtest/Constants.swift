@@ -13,21 +13,22 @@
 import Foundation
 
 /// Maximum retry count
-let MAX_RETRY_COUNT: UInt8 = 5
+let maxRetryCount: UInt8 = 5
 
 /// M-Lab discover server URL
-let DISCOVER_SERVER_URL = "https://locate.measurementlab.net/v2/nearest/ndt/ndt7?client_name=ndt7-client-ios"
+let discoverServerURL =
+  "https://locate.measurementlab.net/v2/nearest/ndt/ndt7?client_name=ndt7-client-ios"
 
 /// Maximum message size to send in one websocket frame.
-let MAX_MESSAGE_SIZE: Int = 1 << 23
+let maxMessageSize: Int = 1 << 23
 
 /// Minimum message size to send in one websocket frame.
-let MIN_MESSAGE_SIZE: Int = 1 << 13
+let minMessageSize: Int = 1 << 13
 
 /// The number of second to update measurement report to the caller
-let MEASUREMENT_REPORT_INTERVAL: Int64 = 250 // 250 ms
+let measurementReportInterval: Int64 = 250  // 250 ms
 
 /// The number of second to measure the throughput.
-let MEASUREMENT_DURATION: Int64 = 10 // 10 seconds
+let measurementDuration: Int64 = 10  // 10 seconds
 
-let SCALING_FACTOR = 16
+let scalingFactor = 16
