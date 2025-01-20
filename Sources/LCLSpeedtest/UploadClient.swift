@@ -11,10 +11,10 @@
 //
 
 import Foundation
-import WebSocketKit
 import NIOCore
 import NIOPosix
 import NIOWebSocket
+import LCLWebSocket
 
 internal final class UploadClient: SpeedTestable {
     private let url: URL
@@ -41,6 +41,10 @@ internal final class UploadClient: SpeedTestable {
         self.init(url: url)
         self.deviceName = deviceName
     }
+    
+    var websocketConfiguration: LCLWebSocket.Configuration {
+        .init(maxFrameSize: MAX_MESSAGE_SIZE, minNonFinalFragmentSize: MIN_MESSAGE_SIZE, deviceName: self.deviceName)
+    }
 
     var onMeasurement: ((SpeedTestMeasurement) -> Void)?
 
@@ -50,57 +54,47 @@ internal final class UploadClient: SpeedTestable {
 
     func start() throws -> EventLoopFuture<Void> {
         let promise = self.eventloopGroup.next().makePromise(of: Void.self)
-        WebSocket.connect(
-            to: self.url,
-            headers: self.httpHeaders,
-            queueSize: 1 << 26,
-            deviceName: self.deviceName,
-            configuration: self.configuration,
-            on: self.eventloopGroup
-        ) { ws in
+        var client = LCLWebSocket.client(on: self.eventloopGroup)
+        client.onOpen { ws in
             print("websocket connected")
-
-            ws.onText(self.onText)
-            ws.onBinary(self.onBinary)
-            ws.onClose.whenComplete { result in
-                let closeResult = self.onClose(
-                    closeCode: ws.closeCode ?? .unknown(WebSocketErrorCode.missingErrorCode),
-                    closingResult: result
-                )
-                switch closeResult {
-                case .success:
-                    if let onFinish = self.onFinish {
-                        self.emitter.async {
-                            onFinish(
-                                UploadClient.generateMeasurementProgress(
-                                    startTime: self.startTime,
-                                    numBytes: self.totalBytes,
-                                    direction: .upload
-                                ),
-                                nil
-                            )
-                        }
+            self.upload(using: ws).cascadeFailure(to: promise)
+        }
+        client.onText(self.onText(ws:text:))
+        client.onBinary(self.onBinary(ws:bytes:))
+        client.onClosing { closeCode, _ in
+            let result = self.onClose(closeCode: closeCode)
+            switch result {
+            case .success:
+                if let onFinish = self.onFinish {
+                    self.emitter.async {
+                        onFinish(
+                            UploadClient.generateMeasurementProgress(
+                                startTime: self.startTime,
+                                numBytes: self.totalBytes,
+                                direction: .upload
+                            ),
+                            nil
+                        )
                     }
-                    ws.close(code: .normalClosure, promise: promise)
-                case .failure(let error):
-                    if let onFinish = self.onFinish {
-                        self.emitter.async {
-                            onFinish(
-                                UploadClient.generateMeasurementProgress(
-                                    startTime: self.startTime,
-                                    numBytes: self.totalBytes,
-                                    direction: .upload
-                                ),
-                                error
-                            )
-                        }
+                }
+            case .failure(let error):
+                if let onFinish = self.onFinish {
+                    self.emitter.async {
+                        onFinish(
+                            UploadClient.generateMeasurementProgress(
+                                startTime: self.startTime,
+                                numBytes: self.totalBytes,
+                                direction: .upload
+                            ),
+                            error
+                        )
                     }
-                    ws.close(code: .goingAway, promise: promise)
                 }
             }
-
-            self.upload(using: ws).cascadeFailure(to: promise)
-        }.cascadeFailure(to: promise)
+        }
+        
+        client.connect(to: self.url, headers: self.httpHeaders, configuration: self.configuration).cascadeFailure(to: promise)
+        
         return promise.futureResult
     }
 
@@ -111,7 +105,8 @@ internal final class UploadClient: SpeedTestable {
         }
     }
 
-    func onText(ws: WebSocketKit.WebSocket, text: String) {
+    @Sendable
+    func onText(ws: WebSocket, text: String) {
         let buffer = ByteBuffer(string: text)
         do {
             let measurement: SpeedTestMeasurement = try self.jsonDecoder.decode(SpeedTestMeasurement.self, from: buffer)
@@ -125,6 +120,7 @@ internal final class UploadClient: SpeedTestable {
         }
     }
 
+    @Sendable
     func onBinary(ws: WebSocket, bytes: ByteBuffer) {
         do {
             // this should not be invoked in upload test
@@ -150,18 +146,19 @@ internal final class UploadClient: SpeedTestable {
                 return
             }
             let el = self.eventloopGroup.next()
-            ws.getBufferedBytes().hop(to: el).map { bufferedBytes in
+            ws.bufferedAmount.hop(to: el).map { bufferedBytes in
                 let nextIncrementSize = newLoadSize > MAX_MESSAGE_SIZE ? MAX_MESSAGE_SIZE : SCALING_FACTOR * newLoadSize
                 let loadSize = (self.totalBytes - bufferedBytes > nextIncrementSize) ? newLoadSize * 2 : newLoadSize
                 if bufferedBytes < 7 * loadSize {
-                    let payload = ws.allocator.buffer(repeating: 0, count: loadSize)
+                    
+                    let payload = ws.channel.allocator.buffer(repeating: 0, count: loadSize)
                     let p = el.makePromise(of: Void.self)
-                    ws.send(payload, promise: p)
+                    ws.send(payload, opcode: .binary, promise: p)
                     p.futureResult.cascadeFailure(to: promise)
                     self.totalBytes += loadSize
                 }
 
-                ws.getBufferedBytes().hop(to: el).map { buffered in
+                ws.bufferedAmount.hop(to: el).map { buffered in
                     self.reportToClient(currentBufferSize: buffered)
                 }.cascadeFailure(to: promise)
 

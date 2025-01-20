@@ -11,9 +11,9 @@
 //
 
 import Foundation
-import WebSocketKit
+import LCLWebSocket
 import NIOWebSocket
- import NIOCore
+import NIOCore
 
 /// This protocol defines callbacks to monitor the speed test progress, including the measurement progress,
 /// measurement result, and potential errors when test finishes.
@@ -51,34 +51,26 @@ public protocol SpeedTestable {
 extension SpeedTestable {
 
     /// HTTP headers that will be used to identify speed test protocol with M-Lab server.
-    var httpHeaders: HTTPHeaders {
-        return HTTPHeaders([("Sec-Websocket-Protocol", "net.measurementlab.ndt.v7")])
+    var httpHeaders: [String: String] {
+        return ["Sec-Websocket-Protocol": "net.measurementlab.ndt.v7"]
     }
 
     /// Default Websocket configuration using the `MAX_MESSAGE_SIZE` for max frame size
     /// and `MIN_MESSAGE_SIZE` for min final fragment size.
-    var configuration: WebSocketClient.Configuration {
-        var config = WebSocketClient.Configuration()
-        config.maxFrameSize = MAX_MESSAGE_SIZE
-        config.minNonFinalFragmentSize = MIN_MESSAGE_SIZE
-        return config
+    var configuration: LCLWebSocket.Configuration {
+        return LCLWebSocket.Configuration(maxFrameSize: MAX_MESSAGE_SIZE, minNonFinalFragmentSize: MIN_MESSAGE_SIZE)
     }
 }
 
 extension SpeedTestable {
 
     /// Default implementation to properly close websocket.
-    func onClose(closeCode: WebSocketErrorCode, closingResult: Result<Void, Error>) -> Result<Void, SpeedTestError> {
-        switch closingResult {
-        case .success:
-            switch closeCode {
-            case .normalClosure:
-                return .success(())
-            default:
-                return .failure(.websocketCloseFailed(closeCode))
-            }
-        case .failure(let error):
-            return .failure(.websocketCloseWithError(error))
+    func onClose(closeCode: WebSocketErrorCode?) -> Result<Void, SpeedTestError> {
+        switch closeCode {
+        case .normalClosure:
+            return .success(())
+        default:
+            return .failure(.websocketCloseFailed(closeCode))
         }
     }
 
