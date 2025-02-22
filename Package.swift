@@ -12,9 +12,9 @@ let package = Package(
         .library(name: "LCLSpeedtest", targets: ["LCLSpeedtest"])
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-nio.git", from: "2.73.0"),
+        .package(url: "https://github.com/apple/swift-nio.git", from: "2.81.0"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.5.3"),
-        .package(url: "https://github.com/Local-Connectivity-Lab/lcl-websocket.git", from: "1.0.1"),
+        .package(url: "https://github.com/Local-Connectivity-Lab/lcl-websocket.git", from: "1.1.0"),
     ],
     targets: [
         .target(
